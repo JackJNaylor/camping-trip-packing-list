@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Welcome to The Camping Packing List Generator {% endblock %}</h1>
+    <div class="input-box">
+        <h2>Enter Your Trip Details</h2>
+        <form method="post" enctype="multipart/form-data" action="/submit">
+            <div class="form-group">
+                <label for="people">Number of People on Trip</label>
+                <input name="people" id="people" type="number" min="1" max="30"
+                      class="form-control" size="3%" step="1">{{ request.form['people'] }}</input>
+            </div>
+            <div class="form-group">
+                <input id="searchTextField" name="searchTextField" type="text" size="50%"/>
+            </div>
+            <div class="form-group">
+                 <input type="text" name="daterange" id="daterange" value="01/01/2020 - 01/31/2020" size="50%"/>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Upload</button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

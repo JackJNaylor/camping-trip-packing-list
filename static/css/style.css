@@ -1,0 +1,26 @@
+h1 {
+    border: 2px #eee solid;
+    color: brown;
+    text-align: center;
+    padding: 10px;
+    background-color: beige;
+}
+body {
+ background-image: url("../img/canoe.jpg");
+ /* Full height */
+  height: 100%;
+
+  /* Center and scale the image nicely */
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+.input-box {
+  background-color: beige;
+  border-radius: 5px 5px 0px 0px;
+  text-align: center;
+  color: black;
+  padding: 10px;
+  width: 50%;
+  margin-left:auto;
+  margin-right:auto;
+}
