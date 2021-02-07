@@ -20,8 +20,6 @@
             google.maps.event.addDomListener(window, 'load', initialize);
       </script>
 
-
-
     <title>Camping Packing List</title>
   </head>
   <body>
@@ -35,6 +33,11 @@
                 <li class="nav-item active">
                     <a class="nav-link" href="#">About</a>
                 </li>
+                {% if current_user.is_authenticated %}
+                    <li class="nav-item active">
+                        <a class="nav-link" href="my_lists">My Lists</a>
+                    </li>
+                {% endif %}
                 {% if not current_user.is_authenticated %}
                     <li class="nav-item active">
                         <a href="{{ url_for('login') }}" class="nav-link">
@@ -71,7 +74,9 @@
       <script>
           $(function() {
               $('input[name="daterange"]').daterangepicker({
-                opens: 'left'
+                opens: 'left',
+                minDate: new Date(),
+                maxDate: moment().add(16, 'days')
               }, function(start, end, label) {
                 console.log("A new date selection was made: " + start.format('YYYY-MM-DD') + ' to ' + end.format('YYYY-MM-DD'));
               });

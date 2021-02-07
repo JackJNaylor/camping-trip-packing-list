@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} {{ name }} {% endblock %}</h1>
+    <div class="input-box">
+
+        <h2>Group Items</h2>
+        {% for item in group %}
+            <div>
+                {{ item }}
+            </div>
+        {% endfor %}
+        <h2>Individual Items</h2>
+        {% for item in individual %}
+            <div>
+                {{ item }}
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

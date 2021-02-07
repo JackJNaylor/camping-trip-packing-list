@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+
+{% block content %}
+    <h1>{% block title %} Your Lists {% endblock %}</h1>
+    <div class="input-box">
+
+        {% for list in my_lists %}
+            <h2><a href="{{ url_for('show_list', list_id=list.id) }}"> {{ list.ListName }}</a></h2>
+        {% endfor %}
+    </div>
+{% endblock %}
