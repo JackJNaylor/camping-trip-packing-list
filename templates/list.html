@@ -16,5 +16,8 @@
                 {{ item }}
             </div>
         {% endfor %}
+        <form action="{{ url_for('delete', list_id=id) }}">
+        <input type="submit" value="Delete List" />
+    </form>
     </div>
 {% endblock %}

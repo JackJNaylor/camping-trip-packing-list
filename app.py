@@ -4,24 +4,19 @@ from mongoengine.queryset.visitor import Q
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField
 from wtforms.validators import Email, Length, InputRequired
-from flask_pymongo import PyMongo
 from weatherbit.api import Api
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 import requests
 import math
 from datetime import datetime, date
-from fpdf import FPDF
-from pprint import pprint
 
 
 api_key = "075766a67b234c07800263424262e964"
 api = Api(api_key)
 api.set_granularity('daily')
 app = Flask(__name__)
-# mongo = PyMongo()
 
-# app.config['MONGO_URI'] = 'mongodb+srv://jacknaylor:mongoPass@cluster0.xohuk.mongodb.net/Packer?retryWrites=true&w=majority'
 app.config['MONGODB_SETTINGS'] = {
     'db': 'Packer',
     'host': 'mongodb+srv://jacknaylor:mongoPass@cluster0.xohuk.mongodb.net/Packer?retryWrites=true&w=majority'
@@ -32,7 +27,6 @@ app.config['SECRET_KEY'] = 'klasjdlkhjlkgjoqi9ejlinalksdjhflkjaee'
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-# mongo.init_app(app)
 weather_url = "https://api.weatherbit.io/v2.0/forecast/daily"
 
 # Weather code sets
@@ -49,6 +43,7 @@ class User(UserMixin, db.Document):
     password = db.StringField()
 
 
+# Packing Items Class
 class PackingItem(db.Document):
     meta = {'collection': 'packing_items'}
     ItemName = db.StringField()
@@ -61,6 +56,7 @@ class PackingItem(db.Document):
     Group = db.StringField()
 
 
+# Packing List Class
 class PackingList(db.Document):
     meta = {'collection': 'packing_lists'}
     ListName = db.StringField()
@@ -68,10 +64,18 @@ class PackingList(db.Document):
     IndividualList = db.ListField()
     OwnerIds = db.ListField()
 
+
+# RegForm for logging in
+class RegForm(FlaskForm):
+    email = StringField('email',  validators=[InputRequired(), Email(message='Invalid email'), Length(max=30)])
+    password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=20)])
+
+
 # parse location for weatherbit.io api, will only accept city, country for locations outside of the united states
 def parse_location(location):
-    location = location.replace(" ", "")
+    print(location)
     split = location.split(',')
+
     # remove province code from location
     if split[-1] != 'USA' and len(split)>2:
         location = split[0] + "," + split[2]
@@ -139,7 +143,6 @@ def get_weather(location, daterange):
 # get the packing list based on the weather
 def get_list(data):
     low_temp, high_temp, conditions = parse_weather_data(data)
-    item = PackingItem.objects(Q(Required="True") | Q(Weather="Rain"))
     if len(conditions) == 0:
         items = PackingItem.objects(Q(Required="True") | Q(MaxTemp__gte=low_temp) | Q(MinTemp__lte=high_temp))
     elif len(conditions) == 1:
@@ -157,6 +160,8 @@ def get_quantities(item_list, trip_length, people):
     individual_list = []
     group_list = []
     for item in item_list:
+
+        # Quantity is static
         if item.UsageType == "Singular":
             if item.Group =="True":
                 entry = "1 " + str(item.ItemName)
@@ -165,6 +170,7 @@ def get_quantities(item_list, trip_length, people):
                 entry = "1 " + str(item.ItemName)
                 individual_list.append(entry)
 
+        # Quantity depends only on number of people on trip
         if item.UsageType == "Personal":
             if item.Group == "True":
                 quant = str(math.ceil(float(item.Unit) * people))
@@ -175,6 +181,7 @@ def get_quantities(item_list, trip_length, people):
                 entry = quant + " " + str(item.ItemName)
                 individual_list.append(entry)
 
+        # quantity depends of trip length and number of people
         if item.UsageType == "Variable":
             quant = str(math.ceil(float(item.Unit) * people * trip_length))
             if item.Group == "True":
@@ -184,6 +191,8 @@ def get_quantities(item_list, trip_length, people):
                 entry = quant + " " + str(item.ItemName)
                 individual_list.append(entry)
 
+
+        # Quantity depends only on length of trip
         if item.UsageType == "Daily":
             quant = str(math.ceil(float(item.Unit) * trip_length))
             if item.Group == "True":
@@ -203,38 +212,12 @@ def store_lists(list_name, individual_list, group_list):
     return myList.id
 
 
-def create_pdf(individual_list, group_list):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font('Times', size=16)
-    line = 2
-    pdf.cell(200, 10, txt="Group Items", ln=1)
-    pdf.set_font('Times', size=12)
-    for item in group_list:
-        pdf.cell(200, 10, txt=item,
-                 ln=line)
-        line += 1
-    pdf.set_font('Times', size=16)
-    pdf.cell(200, 10, txt="Individual Items", ln=line)
-    pdf.set_font('Times', size=12)
-    line += 1
-    for item in individual_list:
-        pdf.cell(200, 10, txt=item,
-                 ln=line)
-        line += 1
-    pdf.output(name="Packing List.pdf", dest="F")
-
-
 @login_manager.user_loader
 def load_user(user_id):
     return User.objects(pk=user_id).first()
 
 
-class RegForm(FlaskForm):
-    email = StringField('email',  validators=[InputRequired(), Email(message='Invalid email'), Length(max=30)])
-    password = PasswordField('password', validators=[InputRequired(), Length(min=8, max=20)])
-
-
+# Check if user exists, if not register user and login
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegForm()
@@ -253,6 +236,7 @@ def register():
     return render_template('register.html', form=form)
 
 
+# Login function using RegForm
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
@@ -283,24 +267,19 @@ def submit():
         people = request.form.get('people')
         location = request.form.get('searchTextField')
         daterange = request.form.get('daterange')
+
         location = parse_location(location)
         print(location)
-        # test_collection.insert_one({'itemName': 'Grill', 'Required': True, 'Weather': 'All', 'MaxTemp': None, 'MinTemp': None, 'unit': 1, 'type': 'Static' })
+
         data, trip_length = get_weather(location, daterange)
-        # params = {'city': location, 'key': api_key}
-        # cursor = db.packing_items.find(
-        #     {"$or": [{"Weather": "Rain"}, {"ItemName": "Grill"}]})
-        #
-        # for item in cursor:
-        #     pprint(item)
 
         item_list, conditions = get_list(data)
 
         individual_list, group_list = get_quantities(item_list, trip_length, float(people))
-        print(individual_list)
-        print(group_list)
-        # create_pdf(individual_list, group_list)
+
         list_id = store_lists(list_name, individual_list, group_list)
+
+
         return redirect(url_for('show_list', list_id=list_id))
         # return render_template('list.html', individual=individual_list, group=group_list, weather=conditions)
 
@@ -310,20 +289,25 @@ def submit():
 @app.route('/<list_id>')
 @login_required
 def show_list(list_id):
-    print(list_id)
     list_object = PackingList.objects(id=list_id)
-    print("here")
     my_list = list_object[0]
-    print(my_list.IndividualList)
-    return render_template('list.html', name=my_list.ListName, individual=my_list.IndividualList, group=my_list.GroupList)
+    return render_template('list.html', name=my_list.ListName, individual=my_list.IndividualList, group=my_list.GroupList, id=list_id)
 
 
+# Show all lists for a user
 @app.route('/my_lists')
 @login_required
 def my_lists():
     user_id = current_user.id
     all_lists = PackingList.objects(OwnerIds__contains=user_id)
     return render_template('my_lists.html', my_lists=all_lists)
+
+
+@app.route('/delete/<list_id>')
+@login_required
+def delete(list_id):
+    PackingList.objects(id=list_id).delete()
+    return redirect(url_for('index'))
 
 
 @app.route('/logout', methods=['GET'])
