@@ -264,11 +264,15 @@ def login():
 def index():
     return render_template('index.html')
 
+@app.route('/about')
+def about():
+    return render_template('about.html')
 
+
+# Create List Based on Weather and Number of People
 @app.route('/submit', methods=('GET', 'POST'))
 @login_required
 def submit():
-    # test_collection = mongo.db.test
     error = None
     if request.method == 'POST':
         list_name = request.form.get('listName')
@@ -277,7 +281,7 @@ def submit():
         daterange = request.form.get('daterange')
 
         location = parse_location(location)
-        print(location)
+
         try:
             data, trip_length = get_weather(location, daterange)
 
@@ -291,11 +295,10 @@ def submit():
             return redirect(url_for('show_list', list_id=list_id))
         except:
             error = "No Weather Data Available, Please Enter Closest City/Town"
-        # return render_template('list.html', individual=individual_list, group=group_list, weather=conditions)
     return render_template('index.html', error=error)
-    # return redirect(url_for('index'))
 
 
+# View a List
 @app.route('/<list_id>')
 @login_required
 def show_list(list_id):
@@ -309,15 +312,33 @@ def show_list(list_id):
 @login_required
 def my_lists():
     user_id = current_user.id
-    all_lists = PackingList.objects(OwnerIds__contains=user_id)
+    all_lists = PackingList.objects(OwnerIds=user_id)
     return render_template('my_lists.html', my_lists=all_lists)
 
 
+# Delete a List
 @app.route('/delete/<list_id>')
 @login_required
 def delete(list_id):
     PackingList.objects(id=list_id).delete()
     return redirect(url_for('index'))
+
+
+# Add a User to a List
+@app.route('/add_owner/<list_id>', methods=['POST'])
+@login_required
+def add_owner(list_id):
+    email = request.form.get('email')
+    existing_user = User.objects(email=email).first()
+    shared_list = PackingList.objects(id=list_id).get()
+    if existing_user:
+        if existing_user.id not in shared_list.OwnerIds:
+            shared_list.OwnerIds.append(existing_user.id)
+            shared_list.save()
+    else:
+        flash("Email invalid")
+
+    return redirect(url_for('show_list', list_id=list_id))
 
 
 @app.route('/logout', methods=['GET'])

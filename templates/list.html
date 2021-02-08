@@ -16,8 +16,29 @@
                 {{ item }}
             </div>
         {% endfor %}
+        <div>
+            {% with messages = get_flashed_messages() %}
+              {% if messages %}
+                <ul class=flashes>
+                {% for message in messages %}
+                  <li>{{ message }}</li>
+                {% endfor %}
+                </ul>
+              {% endif %}
+            {% endwith %}
+        </div>
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('add_owner', list_id=id) }}">
+            <div class="form-group">
+                <label for="email">Email of User to Add to Packing List</label>
+                <input name="email" id="email" type="text" class="form-control" required></input>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Add User</button>
+            </div>
+        </form>
         <form action="{{ url_for('delete', list_id=id) }}">
-        <input type="submit" value="Delete List" />
-    </form>
+            <input type="submit" value="Delete List" />
+        </form>
+        </div>
     </div>
 {% endblock %}
