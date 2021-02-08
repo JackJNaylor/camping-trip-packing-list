@@ -113,31 +113,33 @@ def get_weather(location, daterange):
 
     # get request for weather forecast based on city
     params = {'city': location, 'key': api_key}
-    r = requests.get(url=weather_url, params=params)
-    data = r.json()
-    print(data['data'][0]['weather']['code'])
+    try:
+        r = requests.get(url=weather_url, params=params)
+        data = r.json()
+        print(data['data'][0]['weather']['code'])
 
-    # use dates to get trip length and indicies for relevant weather data
-    today = date.today()
-    daterange.replace(" ", "")
-    split_date = daterange.split('-')
-    split_start = split_date[0].split('/')
-    split_end = split_date[1].split('/')
-    start_date = date(int(split_start[2]), int(split_start[0]), int(split_start[1]))
-    end_date = date(int(split_end[2]), int(split_end[0]), int(split_end[1]))
-    trip = end_date-start_date
-    trip_length = trip.days
-    start = start_date - today
-    end = end_date - today
+        # use dates to get trip length and indicies for relevant weather data
+        today = date.today()
+        daterange.replace(" ", "")
+        split_date = daterange.split('-')
+        split_start = split_date[0].split('/')
+        split_end = split_date[1].split('/')
+        start_date = date(int(split_start[2]), int(split_start[0]), int(split_start[1]))
+        end_date = date(int(split_end[2]), int(split_end[0]), int(split_end[1]))
+        trip = end_date-start_date
+        trip_length = trip.days
+        start = start_date - today
+        end = end_date - today
 
-    # account for python slice inclusivity and starting indicies
-    start_index = int(start.days) + 1
-    end_index = int(end.days) + 2
+        # account for python slice inclusivity and starting indicies
+        start_index = int(start.days) + 1
+        end_index = int(end.days) + 2
 
-    # get weather data for trip dates
-    new_data = data['data'][start_index:end_index]
-
-    return new_data, trip_length
+        # get weather data for trip dates
+        new_data = data['data'][start_index:end_index]
+        return new_data, trip_length
+    except:
+        print("an error has occured")
 
 
 # get the packing list based on the weather
@@ -221,6 +223,7 @@ def load_user(user_id):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegForm()
+    error = None
     if request.method == 'POST':
         if form.validate():
             existing_user = User.objects(email=form.email.data).first()
@@ -231,14 +234,16 @@ def register():
                 login_user(hey)
                 return redirect(url_for('index'))
             else:
-                flash('Email address already exists')
-                return redirect(url_for('login'))
+                error = "Email address already exists"
+                print(error)
+                return redirect(url_for('login', error=error))
     return render_template('register.html', form=form)
 
 
 # Login function using RegForm
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error = None
     if current_user.is_authenticated:
         return redirect(url_for('index'))
     form = RegForm()
@@ -249,7 +254,9 @@ def login():
                 if check_password_hash(check_user['password'], form.password.data):
                     login_user(check_user)
                     return redirect(url_for('index'))
-    return render_template('login.html', form=form)
+        else:
+            error = "Incorrect email or password"
+    return render_template('login.html', form=form, error=error)
 
 
 @app.route('/')
@@ -262,6 +269,7 @@ def index():
 @login_required
 def submit():
     # test_collection = mongo.db.test
+    error = None
     if request.method == 'POST':
         list_name = request.form.get('listName')
         people = request.form.get('people')
@@ -270,20 +278,22 @@ def submit():
 
         location = parse_location(location)
         print(location)
+        try:
+            data, trip_length = get_weather(location, daterange)
 
-        data, trip_length = get_weather(location, daterange)
+            item_list, conditions = get_list(data)
 
-        item_list, conditions = get_list(data)
+            individual_list, group_list = get_quantities(item_list, trip_length, float(people))
 
-        individual_list, group_list = get_quantities(item_list, trip_length, float(people))
-
-        list_id = store_lists(list_name, individual_list, group_list)
+            list_id = store_lists(list_name, individual_list, group_list)
 
 
-        return redirect(url_for('show_list', list_id=list_id))
+            return redirect(url_for('show_list', list_id=list_id))
+        except:
+            error = "No Weather Data Available, Please Enter Closest City/Town"
         # return render_template('list.html', individual=individual_list, group=group_list, weather=conditions)
-
-    return redirect(url_for('index'))
+    return render_template('index.html', error=error)
+    # return redirect(url_for('index'))
 
 
 @app.route('/<list_id>')
